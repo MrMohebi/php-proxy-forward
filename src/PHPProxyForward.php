@@ -1,111 +1,132 @@
 <?php
 
-namespace Zounar\PHPProxy;
+namespace MrMohebi;
 
 use CURLFile;
+use CurlHandle;
 use Exception;
 use RuntimeException;
 
 /**
- * @author Robin Zounar <https://github.com/zounar>
+ * @author MM Mohebi <https://github.com/MrMohebi>
  * @license http://unlicense.org
- * @package Zounar\PHPProxy
+ * @package
  *
  * Credits to:
  *    https://github.com/cowboy/php-simple-proxy/
  *    https://gist.github.com/iovar
  *
  * Usage:
- *    To call this script two headers must be sent
- *        HTTP_PROXY_AUTH           Access key for the proxy (should be changed)
- *        HTTP_PROXY_TARGET_URL     URL to be called by this script
+ *
  *
  * Debug:
  *    To debug, send HTTP_PROXY_DEBUG header with any non-zero value
  *
  * Compatibility:
- *    PHP >=5.6
+ *    PHP ^8.0
  *    libcurl
  *    gzip
  *    PHP safe_mode disabled
  */
-class Proxy
+class PHPProxyForward
 {
     /**
-     * Your private auth key. It is recommended to change it.
-     * If you installed the package via composer, call `Proxy::$AUTH_KEY = '<your-new-key>';` before running the proxy.
-     * If you copied this file, change the value here in place.
-     * @var string
-     */
-    public static $AUTH_KEY = 'Bj5pnZEX6DkcG6Nz6AjDUT1bvcGRVhRaXDuKDX9CjsEs2';
-
-    /**
-     * Set this to false to disable authorization. Useful for debugging, not recommended in production.
+     * Set this false to disable authorization. Useful for debugging, not recommended in production.
      * @var bool
      */
-    public static $ENABLE_AUTH = true;
-
-    /**
-     * If true, PHP safe mode compatibility will not be checked
-     * (you may not need it if no POST files are sent over proxy)
-     * @var bool
-     */
-    public static $IGNORE_SAFE_MODE = false;
-
-    /**
-     * Enable debug mode (you can do it by sending Proxy-Debug header as well).
-     * This value overrides any value specified in Proxy-Debug header.
-     * @var bool
-     */
-    public static $DEBUG = false;
-
-    /**
-     * When set to false the fetched header is not included in the result
-     * @var bool
-     */
-    public static $CURLOPT_HEADER = true;
-
-    /**
-     * When set to false the fetched result is echoed immediately instead of waiting for the fetch to complete first
-     * @var bool
-     */
-    public static $CURLOPT_RETURNTRANSFER = true;
+    public bool $ENABLE_AUTH = true;
 
     /**
      * Target URL is set via Proxy-Target-URL header. For debugging purposes you might set it directly here.
      * This value overrides any value specified in Proxy-Target-URL header.
      * @var string
      */
-    public static $TARGET_URL = '';
+    public string $TARGET_URL = '';
+
+    /**
+     * Your private auth key. It is recommended to change it.
+     * If you installed the package via composer, call `Proxy::$AUTH_KEY = '<your-new-key>';` before running the proxy.
+     * If you copied this file, change the value here in place.
+     * @var string
+     */
+    public static string $AUTH_KEY = 'Bj5pnZEX6DkcG6Nz6AjDUT1bvcGRVhRaXDuKDX9CjsEs2';
+
+    /**
+     * If true, PHP safe mode compatibility will not be checked
+     * (you may not need it if no POST files are sent over proxy)
+     * @var bool
+     */
+    public static bool $IGNORE_SAFE_MODE = false;
+
+    /**
+     * Enable debug mode (you can do it by sending Proxy-Debug header as well).
+     * This value overrides any value specified in Proxy-Debug header.
+     * @var bool
+     */
+    public static bool $DEBUG = false;
+
+    /**
+     * When set to false the fetched header is not included in the result
+     * @var bool
+     */
+    public static bool $CURLOPT_HEADER = true;
+
+    /**
+     * When set to false the fetched result is echoed immediately instead of waiting for the fetch to complete first
+     * @var bool
+     */
+    public static bool $CURLOPT_RETURNTRANSFER = true;
 
     /**
      * Name of remote debug header
      * @var string
      */
-    public static $HEADER_HTTP_PROXY_DEBUG = 'HTTP_PROXY_DEBUG';
+    public static string $HEADER_HTTP_PROXY_DEBUG = 'HTTP_PROXY_DEBUG';
 
     /**
      * Name of the proxy auth key header
      * @var string
      */
-    public static $HEADER_HTTP_PROXY_AUTH = 'HTTP_PROXY_AUTH';
+    public static string $HEADER_HTTP_PROXY_AUTH = 'HTTP_PROXY_AUTH';
 
     /**
      * Name of the target url header
      * @var string
      */
-    public static $HEADER_HTTP_PROXY_TARGET_URL = 'HTTP_PROXY_TARGET_URL';
+    public static string $HEADER_HTTP_PROXY_TARGET_URL = 'HTTP_PROXY_TARGET_URL';
 
     /**
-     * Line break for debug purposes
+     * Line breaks for debug purposes
      * @var string
      */
-    protected static $HR = PHP_EOL . PHP_EOL . '----------------------------------------------' . PHP_EOL . PHP_EOL;
+    protected static string $HR = PHP_EOL . PHP_EOL . '----------------------------------------------' . PHP_EOL . PHP_EOL;
+
+
+
+    public function __construct(string $staticTargetUrl=null, bool $needAuth=false){
+        if (!PHPProxyForward::isInstalledWithComposer()) {
+            PHPProxyForward::checkCompatibility();
+            PHPProxyForward::registerErrorHandlers();
+//            $responseCode = Proxy::run();
+//
+//            if (PHPProxyForward::isResponseCodeOk($responseCode)) {
+//                exit(0);
+//            } else {
+//                exit($responseCode);
+//            }
+        }
+
+        if( $staticTargetUrl && static::isValidURL($staticTargetUrl)){
+            $this->TARGET_URL = $staticTargetUrl;
+        }
+        $this->ENABLE_AUTH = $needAuth;
+    }
+
 
     /**
      * @return string[]
      */
-    protected static function getSkippedHeaders()
+    protected static function getSkippedHeaders(): array
     {
         return [
             static::$HEADER_HTTP_PROXY_TARGET_URL,
@@ -123,19 +144,15 @@ class Proxy
      * @return mixed
      * @noinspection PhpParameterByRefIsNotUsedAsReferenceInspection
      */
-    protected static function ri(&$variable, $default = null)
+    protected static function ri(mixed &$variable, mixed $default = null): mixed
     {
-        if (isset($variable)) {
-            return $variable;
-        } else {
-            return $default;
-        }
+        return $variable ?? $default;
     }
 
     /**
      * @param string $message
      */
-    protected static function exitWithError($message)
+    protected static function exitWithError(string $message)
     {
         http_response_code(500);
         echo 'PROXY ERROR: ' . $message;
@@ -145,9 +162,9 @@ class Proxy
     /**
      * @return bool
      */
-    public static function isInstalledWithComposer()
+    public static function isInstalledWithComposer(): bool
     {
-        $autoloaderPath = join(DIRECTORY_SEPARATOR, [dirname(dirname(__DIR__)), 'autoload.php']);
+        $autoloaderPath = join(DIRECTORY_SEPARATOR, [dirname(__DIR__, 2), 'autoload.php']);
         return is_readable($autoloaderPath);
     }
 
@@ -157,11 +174,11 @@ class Proxy
     public static function registerErrorHandlers()
     {
         set_error_handler(function ($code, $message, $file, $line) {
-            Proxy::exitWithError("($code) $message in $file at line $line");
+            PHPProxyForward::exitWithError("($code) $message in $file at line $line");
         }, E_ALL);
 
         set_exception_handler(function (Exception $ex) {
-            Proxy::exitWithError("{$ex->getMessage()} in {$ex->getFile()} at line {$ex->getLine()}");
+            PHPProxyForward::exitWithError("{$ex->getMessage()} in {$ex->getFile()} at line {$ex->getLine()}");
         });
     }
 
@@ -186,7 +203,7 @@ class Proxy
     /**
      * @return bool
      */
-    protected static function hasCURLFileSupport()
+    protected static function hasCURLFileSupport(): bool
     {
         return class_exists('CURLFile');
     }
@@ -195,7 +212,7 @@ class Proxy
      * @param string $headerString
      * @return string[]
      */
-    protected static function splitResponseHeaders($headerString)
+    protected static function splitResponseHeaders(string $headerString): array
     {
         $results = [];
         $headerLines = preg_split('/[\r\n]+/', $headerString);
@@ -205,8 +222,8 @@ class Proxy
             }
 
             // Header contains HTTP version specification and path
-            if (strpos($headerLine, 'HTTP/') === 0) {
-                // Reset the output array as there may by multiple response headers
+            if (str_starts_with($headerLine, 'HTTP/')) {
+                // Reset the output array as there may be multiple response headers
                 $results = [];
                 continue;
             }
@@ -222,18 +239,29 @@ class Proxy
      * @param int $responseCode
      * @return bool
      */
-    public static function isResponseCodeOk($responseCode)
+    public static function isResponseCodeOk(int $responseCode): bool
     {
         return preg_match('/^[23]\d\d$/', $responseCode) === 1;
     }
 
     /**
+     * @param $url
+     * @return bool
+     */
+    public static function isValidURL($url): bool{
+        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+            throw new RuntimeException(static::$HEADER_HTTP_PROXY_TARGET_URL . ' "' . $url . '" is invalid');
+        }
+        return true;
+    }
+
+    /**
      * @return string
      */
-    protected static function getTargetUrl()
+    protected function getTargetUrl(): string
     {
-        if (!empty(static::$TARGET_URL)) {
-            $targetURL = static::$TARGET_URL;
+        if (!empty($this->TARGET_URL)) {
+            $targetURL = $this->TARGET_URL;
         } else {
             $targetURL = static::ri($_SERVER[static::$HEADER_HTTP_PROXY_TARGET_URL]);
         }
@@ -242,9 +270,7 @@ class Proxy
             throw new RuntimeException(static::$HEADER_HTTP_PROXY_TARGET_URL . ' header is empty');
         }
 
-        if (filter_var($targetURL, FILTER_VALIDATE_URL) === false) {
-            throw new RuntimeException(static::$HEADER_HTTP_PROXY_TARGET_URL . ' "' . $targetURL . '" is invalid');
-        }
+        static::isValidURL($targetURL);
 
         return $targetURL;
     }
@@ -252,7 +278,7 @@ class Proxy
     /**
      * @return bool
      */
-    protected static function isDebug()
+    protected static function isDebug(): bool
     {
         return static::$DEBUG || !empty($_SERVER[static::$HEADER_HTTP_PROXY_DEBUG]);
     }
@@ -260,16 +286,16 @@ class Proxy
     /**
      * @return bool
      */
-    protected static function isAuthenticated()
+    protected function isAuthenticated(): bool
     {
-        return !static::$ENABLE_AUTH || static::ri($_SERVER[static::$HEADER_HTTP_PROXY_AUTH]) === static::$AUTH_KEY;
+        return !$this->ENABLE_AUTH || static::ri($_SERVER[static::$HEADER_HTTP_PROXY_AUTH]) === static::$AUTH_KEY;
     }
 
     /**
      * @param string[] $skippedHeaders
      * @return string[]
      */
-    protected static function getIncomingRequestHeaders($skippedHeaders = [])
+    protected static function getIncomingRequestHeaders(array $skippedHeaders = []): array
     {
         $results = [];
         foreach ($_SERVER as $key => $value) {
@@ -278,7 +304,7 @@ class Proxy
             }
 
             $loweredKey = strtolower($key);
-            if (strpos($loweredKey, 'http_') === 0) {
+            if (str_starts_with($loweredKey, 'http_')) {
                 // Remove prefix
                 $key = substr($loweredKey, strlen('http_'));
                 // Replace underscores with dashes
@@ -295,9 +321,9 @@ class Proxy
 
     /**
      * @param string $targetURL
-     * @return false|resource
+     * @return false|CurlHandle
      */
-    protected static function createRequest($targetURL)
+    protected static function createRequest(string $targetURL): false|CurlHandle
     {
         $request = curl_init($targetURL);
 
@@ -343,9 +369,9 @@ class Proxy
     /**
      * @return int HTTP response code (200, 404, 500, etc.)
      */
-    public static function run()
+    public function run(): int
     {
-        if (!static::isAuthenticated()) {
+        if (!$this->isAuthenticated()) {
             throw new RuntimeException(static::$HEADER_HTTP_PROXY_AUTH . ' header is invalid');
         }
 
@@ -398,7 +424,7 @@ class Proxy
             if (in_array($loweredHeaderName,
                 ['content-type', 'content-language', 'content-security', 'server'])) {
                 header("$headerName: $headerValue");
-            } elseif (strpos($loweredHeaderName, 'x-') === 0) {
+            } elseif (str_starts_with($loweredHeaderName, 'x-')) {
                 header("$headerName: $headerValue");
             } // Replace cookie domain and path
             elseif ($loweredHeaderName === 'set-cookie') {
@@ -454,17 +480,5 @@ class Proxy
 
         echo $responseBody;
         return $responseCode;
-    }
-}
-
-if (!Proxy::isInstalledWithComposer()) {
-    Proxy::checkCompatibility();
-    Proxy::registerErrorHandlers();
-    $responseCode = Proxy::run();
-
-    if (Proxy::isResponseCodeOk($responseCode)) {
-        exit(0);
-    } else {
-        exit($responseCode);
     }
 }

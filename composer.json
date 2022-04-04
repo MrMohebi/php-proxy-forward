@@ -1,5 +1,5 @@
 {
-  "name": "zounar/php-proxy",
+  "name": "mrmohebi/php-proxy-forward",
   "description": "Forward your HTTP/HTTPS requests to another server.",
   "type": "library",
   "keywords": [
@@ -12,28 +12,23 @@
     "curl",
     "curlphp"
   ],
-  "homepage": "https://github.com/zounar/php-proxy",
+  "homepage": "https://github.com/MrMohebi/php-proxy-forward",
   "readme": "README.md",
   "require": {
-    "php": ">=5.6.0",
+    "php": "^8.0",
     "ext-curl": "*",
     "ext-zlib": "*"
   },
   "license": "unlicense",
   "authors": [
     {
-      "name": "Robin Zounar",
-      "homepage": "https://zounar.me"
+      "name": "MMMohebi",
+      "email": "mmmohebi@outlook.com"
     }
   ],
-  "support": {
-    "issues": "https://github.com/zounar/php-proxy/issues",
-    "source": "https://github.com/zounar/php-proxy",
-    "docs": "https://github.com/zounar/php-proxy/blob/master/README.md"
-  },
   "autoload": {
     "psr-4": {
-      "Zounar\\PHPProxy\\": "./"
+      "MrMohebi\\": "src"
     }
   }
 }
